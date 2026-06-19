@@ -9,3 +9,4 @@ python-jose==3.3.0
 email-validator==2.1.0
 cryptography==42.0.0
 sentence-transformers==2.7.0
+huggingface_hub

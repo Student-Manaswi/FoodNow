@@ -10,23 +10,17 @@ load_dotenv()
 # ─── LIFESPAN EVENT HANDLER (FOR WARMING UP MODELS) ───────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # This runs BEFORE the server starts accepting incoming browser requests
     db_type = "MOCK DATABASE" if is_mock_db() else "MongoDB Atlas"
-    print(f"\n{'='*60}")
-    print(f"🚀 Backend Starting - Using: {db_type}")
-    print(f"{'='*60}\n")
+    print(f"\n🚀 Backend Starting - Using: {db_type}")
     
-    # Safely look for and warm up the embedding model weights
+    # Fast network handshake test
     try:
-        print("⏳ Pre-loading sentence-transformers model weights to prevent frontend timeouts...")
+        print("⏳ Testing serverless Hugging Face API connection...")
         from config.embeddings import get_embedding
-        # Fire a quick fake query to initialize the torch tensors and model weights
         get_embedding("warmup")
-        print("✅ Model weights loaded successfully. Server is primed and ready!")
-    except ImportError:
-        print("ℹ️ Skipping vector model warmup: config.embeddings not found or skipped.")
+        print("✅ Cloud Inference token verified successfully!")
     except Exception as e:
-        print(f"⚠️ Vector model warmup encountered an issue, skipping block: {e}")
+        print(f"⚠️ Pre-warmup skipped or delayed: {e}")
 
     yield
     # Any teardown or cleanup actions go here on server close
