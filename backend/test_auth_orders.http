@@ -1,0 +1,134 @@
+### AUTHENTICATION API TESTS
+### Test with VS Code REST Client or Postman
+
+# Register a new customer
+POST http://localhost:8000/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Rajesh Kumar",
+  "email": "rajesh@example.com",
+  "password": "SecurePass123!",
+  "phone": "+91-9876543210",
+  "role": "customer"
+}
+
+###
+
+# Register admin user
+POST http://localhost:8000/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Admin User",
+  "email": "admin@foodnow.com",
+  "password": "AdminPass123!",
+  "phone": "+91-9999999999",
+  "role": "admin"
+}
+
+###
+
+# Login customer
+POST http://localhost:8000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "rajesh@example.com",
+  "password": "SecurePass123!"
+}
+
+###
+
+# Login admin
+POST http://localhost:8000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@foodnow.com",
+  "password": "AdminPass123!"
+}
+
+###
+
+# Get current user info (Replace TOKEN with actual JWT token)
+GET http://localhost:8000/api/auth/me
+Authorization: Bearer TOKEN
+
+###
+
+# Logout
+POST http://localhost:8000/api/auth/logout
+Authorization: Bearer TOKEN
+
+###
+
+### ORDER API TESTS
+
+# Place new order (requires JWT token)
+POST http://localhost:8000/api/orders
+Authorization: Bearer TOKEN
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "dish_id": "123",
+      "dish_name": "Butter Chicken",
+      "quantity": 2,
+      "unit_price": 280
+    },
+    {
+      "dish_id": "456",
+      "dish_name": "Mango Lassi",
+      "quantity": 1,
+      "unit_price": 80
+    }
+  ],
+  "notes": "Extra spicy please"
+}
+
+###
+
+# Get my orders (customer)
+GET http://localhost:8000/api/orders
+Authorization: Bearer TOKEN
+
+###
+
+# Get specific order details
+GET http://localhost:8000/api/orders/ORD_20260618_ABC123
+Authorization: Bearer TOKEN
+
+###
+
+# Get all orders (ADMIN ONLY)
+GET http://localhost:8000/api/admin/all-orders
+Authorization: Bearer ADMIN_TOKEN
+
+###
+
+# Update order status (ADMIN ONLY)
+PATCH http://localhost:8000/api/orders/ORD_20260618_ABC123/status
+Authorization: Bearer ADMIN_TOKEN
+Content-Type: application/json
+
+{
+  "status": "Confirmed"
+}
+
+###
+
+# Cancel order (only if status is "Placed")
+DELETE http://localhost:8000/api/orders/ORD_20260618_ABC123
+Authorization: Bearer TOKEN
+
+###
+
+# Get menu items
+GET http://localhost:8000/api/dishes
+
+###
+
+# Health check
+GET http://localhost:8000/api/health
