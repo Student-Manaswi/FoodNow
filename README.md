@@ -1,5 +1,5 @@
 ```markdown
-# 🌶️ FoodNow - Full-Stack AI Food Ordering System
+# FoodNow - Full-Stack AI Food Ordering System
 
 FoodNow is a modern, full-stack food ordering platform designed with an AI-powered semantic menu search engine and a smart cross-sell cart recommendation companion. Instead of relying on strict keyword matching, customers can search for dishes using natural language phrases like *"something light and vegetarian for dinner"* or *"spicy noodles with chicken"*, while getting real-time structural pairing recommendations based on their current cart state.
 
