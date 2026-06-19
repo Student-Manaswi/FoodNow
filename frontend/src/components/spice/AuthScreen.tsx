@@ -32,7 +32,6 @@ export default function AuthScreen() {
     try {
       const res = await api.post("/api/auth/login", { email, password });
       const { access_token, role: serverRole } = res.data;
-      // store token for all future requests
       localStorage.setItem("token", access_token);
       api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
       const displayName = email.split("@")[0];
@@ -41,8 +40,9 @@ export default function AuthScreen() {
         email,
         role: serverRole || role,
       });
-    } catch (err: any) {
-      const msg = err?.response?.data?.detail || "Invalid email or password.";
+    } catch (err) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      const msg = error?.response?.data?.detail || "Invalid email or password.";
       setLoginErr(msg);
     } finally {
       setLoginLoading(false);
@@ -69,14 +69,14 @@ export default function AuthScreen() {
         phone: phone || "+91-0000000000",
         role: sRole,
       });
-      // after register, auto login
       const res = await api.post("/api/auth/login", { email: sEmail, password: sPass });
       const { access_token, role: serverRole } = res.data;
       localStorage.setItem("token", access_token);
       api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
       login({ name, email: sEmail, role: serverRole || sRole });
-    } catch (err: any) {
-      const msg = err?.response?.data?.detail || "Registration failed. Try again.";
+    } catch (err) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      const msg = error?.response?.data?.detail || "Registration failed. Try again.";
       setSErr(msg);
     } finally {
       setSLoading(false);

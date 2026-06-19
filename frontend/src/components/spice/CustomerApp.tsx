@@ -38,7 +38,6 @@ export default function CustomerApp() {
       void fetchDishes(query);
     }, 500);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   const fetchDishes = async (q: string) => {
@@ -46,17 +45,22 @@ export default function CustomerApp() {
     setAiMode(q.trim().length > 0);
     try {
       const res = await api.get("/api/search", { params: { query: q } });
-      const data: Dish[] = (res.data?.results || res.data || []).map((d: any) => ({
-        dish_id: d.dish_id || d._id || d.id,
-        name: d.name,
-        description: d.description,
-        category: d.category,
+
+      // Clean fallback array checks
+      const rawData = res.data?.results || res.data || [];
+
+      const data: Dish[] = rawData.map((d: any) => ({
+        dish_id: String(d.dish_id || d.id || d._id || ""),
+        name: d.name || "Unnamed",
+        description: d.description || "",
+        category: d.category || "Mains",
         price: Number(d.price ?? 0),
-        tags: d.dietary_tags || d.tags || [],
+        tags: d.tags || d.dietary_tags || [],
         is_available: d.is_available !== false,
       }));
       setDishes(data);
-    } catch {
+    } catch (err) {
+      console.error("❌ Frontend fetch alignment failure:", err);
       setDishes([]);
     } finally {
       setLoading(false);
@@ -81,7 +85,7 @@ export default function CustomerApp() {
             res.data?.recommendation_text || res.data?.recommendation || res.data?.message || null,
           );
       } catch {
-        /* silent */
+        /* silent fallback */
       }
     })();
     return () => {

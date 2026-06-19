@@ -4,75 +4,72 @@ from schemas.search import SearchQuery, DishResponse
 from schemas.order import CreateOrder
 from schemas.feedback import CreateFeedback
 from schemas.menu import DishCreate, UpdateDish
-from services.orders import create_order, get_order, update_order_status
+from services.orders import create_order, get_order, update_order_status, get_all_orders
 from services.feedback import create_feedback, get_all_feedback
 from services.dashboard import get_dashboard_kpis
 from services.menu import create_dish, update_dish, delete_dish
 from services.recommendations import get_recommendations
 from pydantic import BaseModel
 from typing import List, Optional
-from pymongo import MongoClient
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
+from config.db import get_dishes_collection
 
 router = APIRouter(prefix="/api", tags=["spiceroute"])
 
 
-# ─── SEARCH ───────────────────────────────────────────────────────────────────
+# ─── SEARCH & INITIAL LOAD COMBINED ──────────────────────────────────────────
 
-@router.post("/search", response_model=List[DishResponse])
+@router.get("/search", response_model=List[DishResponse])
 def ai_search(
-    query: str = Query(..., description="Natural language search query"),
+    query: str = Query("", description="Natural language search query"),
     max_price: float = Query(None, description="Max price filter"),
     category: str = Query(None, description="Category filter")
 ):
-    """AI-powered semantic menu search"""
-    results = vector_search(query, max_price, category)
-    return results
-
-
-from config.db import get_dishes_collection
-
-from fastapi import APIRouter, Query
-from schemas.search import DishResponse
-from config.db import get_dishes_collection
-from pydantic import BaseModel
-from typing import List, Optional
-
-router = APIRouter(prefix="/api", tags=["spiceroute"])
-
-# ─── SEARCH & PAGE LOAD ───────────────────────────────────────────────────────
-
-@router.get("/search", response_model=List[DishResponse])
-def get_all_dishes(category: Optional[str] = Query(None)):
-    """Fetches all dishes safely for the initial page load using the secure client"""
+    """Unified route mapping database fields perfectly for the frontend layout grid"""
     dishes_collection = get_dishes_collection()
-    query = {}
+    
+    clean_cat = None if (category and category.lower() == "all") else category
 
-    if category and category.strip() != "" and category.lower() != "all":
-        query["category"] = {"$regex": f"^{category.strip()}$", "$options": "i"}
+    # 1. Fetch raw documents
+    if not query or query.strip() == "":
+        db_query = {}
+        if clean_cat:
+            db_query["category"] = {"$regex": f"^{clean_cat.strip()}$", "$options": "i"}
+        try:
+            raw_results = list(dishes_collection.find(db_query))
+        except Exception as e:
+            print(f"❌ Direct DB Fetch Failed: {e}")
+            raw_results = []
+    else:
+        try:
+            raw_results = vector_search(query, max_price, clean_cat)
+        except Exception as e:
+            print(f"❌ Vector Search Failed: {e}")
+            raw_results = []
 
-    try:
-        results = list(dishes_collection.find(query))
-    except Exception as e:
-        print(f"❌ DB Fetch Failed: {e}")
-        results = []
-
-    return [
-        DishResponse(
-            id=str(r["_id"]),
-            name=r["name"],
-            description=r["description"],
-            price=r["price"],
-            category=r["category"],
-            dietary_tags=r["dietary_tags"],
-            is_available=r.get("is_available", True),
-            image_url=r.get("image_url")
+    # 2. Map structural array items explicitly to match frontend key expectations
+    formatted_dishes = []
+    for r in raw_results:
+        doc = r if isinstance(r, dict) else getattr(r, "__dict__", {})
+        
+        # Extract ID safely from _id, id, or dish_id string modifications
+        db_id = str(doc.get("_id", doc.get("id", doc.get("dish_id", ""))))
+        
+        formatted_dishes.append(
+            DishResponse(
+                id=db_id,
+                dish_id=db_id,                                      # Enforces frontend key rendering
+                name=doc.get("name", "Unknown Dish"),
+                description=doc.get("description", ""),
+                price=float(doc.get("price", 0)),
+                category=doc.get("category", "Mains"),
+                dietary_tags=doc.get("dietary_tags", doc.get("tags", [])),
+                tags=doc.get("dietary_tags", doc.get("tags", [])),   # Explicit duplicate property match
+                is_available=doc.get("is_available", True),
+                image_url=doc.get("image_url")
+            )
         )
-        for r in results
-    ]
+        
+    return formatted_dishes
 # ─── CART / RECOMMENDATIONS ───────────────────────────────────────────────────
 
 class CartItem(BaseModel):
@@ -98,6 +95,12 @@ def place_order(order: CreateOrder):
         [item.dict() for item in order.items]
     )
     return result
+
+
+@router.get("/orders")
+def list_orders():
+    """Get all orders (for admin)"""
+    return get_all_orders()
 
 
 @router.get("/orders/{order_id}")
@@ -151,8 +154,3 @@ def edit_dish(dish_id: str, dish: UpdateDish):
 def remove_dish(dish_id: str):
     return {"deleted": delete_dish(dish_id)}
 
-from services.orders import get_all_orders
-
-@router.get("/orders")
-def list_orders():
-    return get_all_orders()

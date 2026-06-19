@@ -1,4 +1,5 @@
-﻿from fastapi import FastAPI
+﻿from contextlib import asynccontextmanager
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from config.db import is_mock_db
@@ -6,7 +7,32 @@ import os
 
 load_dotenv()
 
-app = FastAPI(title="Food Ordering System API")
+# ─── LIFESPAN EVENT HANDLER (FOR WARMING UP MODELS) ───────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # This runs BEFORE the server starts accepting incoming browser requests
+    db_type = "MOCK DATABASE" if is_mock_db() else "MongoDB Atlas"
+    print(f"\n{'='*60}")
+    print(f"🚀 Backend Starting - Using: {db_type}")
+    print(f"{'='*60}\n")
+    
+    # Safely look for and warm up the embedding model weights
+    try:
+        print("⏳ Pre-loading sentence-transformers model weights to prevent frontend timeouts...")
+        from config.embeddings import get_embedding
+        # Fire a quick fake query to initialize the torch tensors and model weights
+        get_embedding("warmup")
+        print("✅ Model weights loaded successfully. Server is primed and ready!")
+    except ImportError:
+        print("ℹ️ Skipping vector model warmup: config.embeddings not found or skipped.")
+    except Exception as e:
+        print(f"⚠️ Vector model warmup encountered an issue, skipping block: {e}")
+
+    yield
+    # Any teardown or cleanup actions go here on server close
+
+# Pass the unified lifespan context into the FastAPI instance
+app = FastAPI(title="Food Ordering System API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,13 +69,6 @@ def health():
         "status": "✅ Backend live",
         "database": db_status
     }
-
-@app.on_event("startup")
-async def startup_event():
-    db_type = "MOCK DATABASE" if is_mock_db() else "MongoDB Atlas"
-    print(f"\n{'='*60}")
-    print(f"🚀 Backend Started - Using: {db_type}")
-    print(f"{'='*60}\n")
 
 if __name__ == "__main__":
     import uvicorn
